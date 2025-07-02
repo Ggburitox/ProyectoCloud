@@ -13,13 +13,14 @@ provider:
   environment:
     USERS_TABLE_NAME: usuarios-${sls:stage}
     TOKENS_TABLE_NAME: tokens-${sls:stage}
+    STAGE: ${sls:stage}
 
 functions:
   register:
     handler: register.lambda_handler
     events:
       - http:
-          path: /usuario/register
+          path: /usuario/registro
           method: post
           cors: true
 
@@ -28,6 +29,15 @@ functions:
     events:
       - http:
           path: /usuario/login
+          method: post
+          cors: true
+
+  validarToken:
+    name: validar_token
+    handler: validar_token.lambda_handler
+    events:
+      - http:
+          path: /usuario/validar
           method: post
           cors: true
 
