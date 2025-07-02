@@ -19,7 +19,7 @@ functions:
     handler: register.lambda_handler
     events:
       - http:
-          path: /usuario/registro
+          path: /usuario/register
           method: post
           cors: true
 
