@@ -1,0 +1,73 @@
+org: thiagorm
+service: api-productos
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  memorySize: 1024
+  timeout: 30
+  iam:
+    role: arn:aws:iam::406642386657:role/LabRole
+  environment:
+    PRODUCTOS_TABLE_NAME: productos-${sls:stage}
+
+functions:
+  crearProducto:
+    handler: crearProducto.handler
+    events:
+      - http:
+          path: /producto/crear
+          method: post
+          cors: true
+
+  buscarProducto:
+    handler: buscarProducto.handler
+    events:
+      - http:
+          path: /producto/buscar
+          method: post
+          cors: true
+
+  listarProductos:
+    handler: listarProductos.handler
+    events:
+      - http:
+          path: /producto/listar
+          method: post
+          cors: true
+
+  modificarProducto:
+    handler: modificarProducto.handler
+    events:
+      - http:
+          path: /producto/modificar
+          method: post
+          cors: true
+
+  eliminarProducto:
+    handler: eliminarProducto.handler
+    events:
+      - http:
+          path: /producto/eliminar
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    ProductosTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.PRODUCTOS_TABLE_NAME}
+        AttributeDefinitions:
+          - AttributeName: tenant_id
+            AttributeType: S
+          - AttributeName: producto_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: tenant_id
+            KeyType: HASH
+          - AttributeName: producto_id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
