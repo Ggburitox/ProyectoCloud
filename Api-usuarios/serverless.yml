@@ -7,7 +7,7 @@ provider:
   memorySize: 1024
   timeout: 30
   region: us-east-1
-  stage: ${opt:stage, 'dev'}  # stage configurable por CLI, default 'dev'
+  stage: ${opt:stage, 'dev'}
   iam:
     role: arn:aws:iam::406642386657:role/LabRole
   environment:
