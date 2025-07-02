@@ -1,0 +1,49 @@
+org: thiagorm
+service: api-compras
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 1024
+  timeout: 30
+  iam:
+    role: arn:aws:iam::406642386657:role/LabRole
+  environment:
+    COMPRAS_TABLE_NAME: compras-${sls:stage}
+
+functions:
+  registrar_compra:
+    handler: registrar_compra.lambda_handler
+    events:
+      - http:
+          path: /compras/registrar
+          method: post
+          cors: true
+
+  listar_compras:
+    handler: listar_compras.lambda_handler
+    events:
+      - http:
+          path: /compras/listar
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    ComprasTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: compras-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: tenant_id
+            AttributeType: S
+          - AttributeName: compra_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: tenant_id
+            KeyType: HASH
+          - AttributeName: compra_id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
