@@ -1,0 +1,68 @@
+org: thiagorm
+service: api-usuarios
+
+provider:
+  name: aws
+  runtime: python3.12
+  memorySize: 1024
+  timeout: 30
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  iam:
+    role: arn:aws:iam::406642386657:role/LabRole
+  environment:
+    USERS_TABLE_NAME: usuarios-${sls:stage}
+    TOKENS_TABLE_NAME: tokens-${sls:stage}
+    STAGE: ${sls:stage}
+
+functions:
+  register:
+    handler: register.lambda_handler
+    events:
+      - http:
+          path: /usuario/registro
+          method: post
+          cors: true
+
+  login:
+    handler: login.lambda_handler
+    events:
+      - http:
+          path: /usuario/login
+          method: post
+          cors: true
+
+  validarToken:
+    name: validar_token
+    handler: validar_token.lambda_handler
+    events:
+      - http:
+          path: /usuario/validar
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    UsuariosTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: usuarios-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: usuario_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: usuario_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    TokensTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: tokens-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: token
+            AttributeType: S
+        KeySchema:
+          - AttributeName: token
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
