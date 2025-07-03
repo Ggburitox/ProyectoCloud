@@ -1,19 +1,21 @@
 const AWS = require('aws-sdk');
-const axios = require('axios');
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 const TABLE_NAME = process.env.PRODUCTOS_TABLE_NAME || 't_productos';
-const VALIDAR_TOKEN_URL = 'https://n7rvm0z7c1.execute-api.us-east-1.amazonaws.com/dev/usuario/validar';
+const TOKENS_TABLE_NAME = process.env.TOKENS_TABLE_NAME || 'tokens-dev'; 
 
 exports.handler = async (event) => {
   console.log("Evento recibido:", event);
 
   try {
+    // Obtener el body
     const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     const { tenant_id, producto_id, nombre, precio } = body || {};
+
+    // Obtener token
     const token = event.headers?.Authorization;
 
-    // Validación básica
+    // Validación de campos obligatorios
     if (!tenant_id || !producto_id || !nombre || !precio || !token) {
       return {
         statusCode: 400,
@@ -22,29 +24,28 @@ exports.handler = async (event) => {
         }),
       };
     }
+    
+    const tokenData = await dynamodb.get({
+      TableName: TOKENS_TABLE_NAME,
+      Key: { token }
+    }).promise();
 
-    // Validación de token vía HTTP
-    try {
-      const authResponse = await axios.post(
-        VALIDAR_TOKEN_URL,
-        { token }
-      );
-
-      if (authResponse.status === 403) {
-        return {
-          statusCode: 403,
-          body: JSON.stringify({ error: 'Forbidden - Acceso No Autorizado' }),
-        };
-      }
-    } catch (authError) {
-      console.error("Error en validación de token:", authError.message);
+    if (!tokenData.Item) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ error: 'Token inválido o error al validar' }),
+        body: JSON.stringify({ error: 'Token inválido o no encontrado.' }),
       };
     }
 
-    // Guardar en DynamoDB
+    // Verificar expiración
+    const expires = new Date(tokenData.Item.expires);
+    if (new Date() > expires) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: 'Token expirado.' }),
+      };
+    }
+
     await dynamodb.put({
       TableName: TABLE_NAME,
       Item: { tenant_id, producto_id, nombre, precio }
@@ -54,9 +55,8 @@ exports.handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify({ message: 'Producto creado correctamente' }),
     };
-
   } catch (err) {
-    console.error("Error general:", err);
+    console.error("Error:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({
