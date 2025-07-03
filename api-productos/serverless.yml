@@ -16,7 +16,7 @@ provider:
 
 functions:
   crearProducto:
-    handler: crearProducto.handler
+    handler: CrearProducto.handler
     events:
       - http:
           path: /producto/crear
@@ -24,15 +24,23 @@ functions:
           cors: true
 
   buscarProducto:
-    handler: buscarProducto.handler
+    handler: BuscarProducto.handler
     events:
       - http:
           path: /producto/buscar
           method: post
           cors: true
 
+  eliminarProducto:
+    handler: EliminarProducto.handler
+    events:
+      - http:
+          path: /producto/eliminar
+          method: post
+          cors: true
+
   listarProductos:
-    handler: listarProductos.handler
+    handler: ListarProductos.handler
     events:
       - http:
           path: /producto/listar
@@ -40,18 +48,10 @@ functions:
           cors: true
 
   modificarProducto:
-    handler: modificarProducto.handler
+    handler: ModificarProducto.handler
     events:
       - http:
           path: /producto/modificar
-          method: post
-          cors: true
-
-  eliminarProducto:
-    handler: eliminarProducto.handler
-    events:
-      - http:
-          path: /producto/eliminar
           method: post
           cors: true
 
