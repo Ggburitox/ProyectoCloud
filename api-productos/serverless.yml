@@ -12,6 +12,7 @@ provider:
     role: arn:aws:iam::406642386657:role/LabRole
   environment:
     PRODUCTOS_TABLE_NAME: productos-${sls:stage}
+    TOKENS_TABLE_NAME: tokens-${sls:stage}
 
 functions:
   crearProducto:
