@@ -20,10 +20,11 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token requerido"})
             }
 
+        # Verificar token
         token_data = tokens_table.get_item(Key={'token': token})
         item = token_data.get('Item')
 
-        if not item or 'usuario_id' not in item or 'expires' not in item:
+        if not item or 'tenant_id' not in item or 'expires' not in item:
             return {
                 "statusCode": 403,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
@@ -35,19 +36,22 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token expirado"})
             }
 
-        tenant_id = item['usuario_id']
+        comprador_email = item['tenant_id']
 
+        # Leer el body del request
         body = json.loads(event.get("body", "{}"))
         producto_id = body.get("producto_id")
-
-        if not producto_id:
+        tenant_id = body.get("tenant_id")
+        if not producto_id or not tenant_id:
             return {
                 "statusCode": 400,
-                "body": json.dumps({"error": "Falta el producto_id"})
+                "body": json.dumps({"error": "Falta el producto_id o tenant_id"})
             }
 
-        # Obtener producto
-        prod_response = productos_table.get_item(Key={"tenant_id": tenant_id, "producto_id": producto_id})
+        prod_response = productos_table.get_item(Key={
+            "tenant_id": tenant_id,
+            "producto_id": producto_id
+        })
         producto = prod_response.get("Item")
 
         if not producto:
@@ -62,20 +66,23 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Producto sin stock"})
             }
 
-        # Reducir stock
         productos_table.update_item(
-            Key={"tenant_id": tenant_id, "producto_id": producto_id},
+            Key={
+                "tenant_id": tenant_id,
+                "producto_id": producto_id
+            },
             UpdateExpression="SET stock = stock - :val",
             ConditionExpression="stock > :zero",
             ExpressionAttributeValues={":val": 1, ":zero": 0}
         )
 
-        # Guardar compra
         compra_id = str(uuid.uuid4())
         compra_item = {
-            "tenant_id": tenant_id,
+            "tenant_id": comprador_email, 
             "compra_id": compra_id,
             "producto_id": producto_id,
+            "producto_tenant_id": tenant_id,
+            "comprador_email": comprador_email,
             "detalle_producto": {
                 "nombre": producto["nombre"],
                 "descripcion": producto["descripcion"],
