@@ -1,47 +1,44 @@
 import boto3
 import json
-from boto3.dynamodb.conditions import Key
+import os
 
 dynamodb = boto3.resource('dynamodb')
-lambda_client = boto3.client('lambda')
-TABLE_NAME = os.environ['COMPRAS_TABLE_NAME']
+compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
+tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
 
 def lambda_handler(event, context):
     try:
-        token = event['headers'].get('Authorization')
+        token = event.get("headers", {}).get("Authorization")
 
         if not token:
-            return {'statusCode': 403, 'body': json.dumps({'error': 'Token requerido'})}
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Token requerido"})
+            }
 
-        # Validar token
-        payload = json.dumps({ 'token': token })
-        response = lambda_client.invoke(
-            FunctionName='validar_token',
-            InvocationType='RequestResponse',
-            Payload=payload
-        )
+        token_resp = tokens_table.get_item(Key={"token": token})
+        token_data = token_resp.get("Item")
+        if not token_data or datetime.utcnow() > datetime.fromisoformat(token_data["expires"]):
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": "Token inválido o expirado"})
+            }
 
-        auth_response = json.loads(response['Payload'].read())
-        if auth_response.get('statusCode') == 403:
-            return {'statusCode': 403, 'body': json.dumps({'error': 'Token inválido'})}
+        tenant_id = token_data["tenant_id"]
 
-        usuario_data = json.loads(auth_response['body'])
-        tenant_id = usuario_data['usuario_id']
-
-        table = dynamodb.Table(TABLE_NAME)
-
-        resultado = table.query(
-            KeyConditionExpression=Key('tenant_id').eq(tenant_id),
-            Limit=20
+        response = compras_table.query(
+            KeyConditionExpression="tenant_id = :tid",
+            ExpressionAttributeValues={":tid": tenant_id}
         )
 
         return {
-            'statusCode': 200,
-            'body': json.dumps(resultado.get('Items', []))
+            "statusCode": 200,
+            "body": json.dumps({"compras": response.get("Items", [])})
         }
 
     except Exception as e:
+        print("Error:", e)
         return {
-            'statusCode': 500,
-            'body': json.dumps({'error': 'Error al listar compras', 'detalle': str(e)})
+            "statusCode": 500,
+            "body": json.dumps({"error": "Error interno", "detalle": str(e)})
         }
