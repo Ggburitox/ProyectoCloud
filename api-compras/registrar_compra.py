@@ -2,7 +2,7 @@ import boto3
 import json
 import uuid
 from datetime import datetime
-
+import os
 dynamodb = boto3.resource('dynamodb')
 productos_table = dynamodb.Table(os.environ['PRODUCTOS_TABLE_NAME'])
 compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
