@@ -23,7 +23,7 @@ def lambda_handler(event, context):
         token_data = tokens_table.get_item(Key={'token': token})
         item = token_data.get('Item')
 
-        if not item or 'tenant_id' not in item or 'expires' not in item:
+        if not item or 'usuario_id' not in item or 'expires' not in item:
             return {
                 "statusCode": 403,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
@@ -35,7 +35,7 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token expirado"})
             }
 
-        tenant_id = item['tenant_id']  # ← Este es tu email, usado como tenant_id
+        tenant_id = item['usuario_id']
 
         body = json.loads(event.get("body", "{}"))
         producto_id = body.get("producto_id")
