@@ -27,13 +27,13 @@ def lambda_handler(event, context):
         token_data = tokens_table.get_item(Key={'token': token})
         item = token_data.get("Item")
 
-        if not item or 'usuario_id' not in item or 'expires' not in item:
+        if not item or 'tenant_id' not in item or 'expires' not in item:
             return {
                 "statusCode": 403,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
             }
 
-        tenant_id = item['usuario_id']
+        tenant_id = item['tenant_id']  # ← CORREGIDO
 
         compras = compras_table.query(
             KeyConditionExpression=Key("tenant_id").eq(tenant_id)
