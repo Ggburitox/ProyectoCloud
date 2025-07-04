@@ -35,7 +35,7 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token expirado"})
             }
 
-        tenant_id = item['tenant_id']
+        tenant_id = item['tenant_id']  # ← Este es tu email, usado como tenant_id
 
         body = json.loads(event.get("body", "{}"))
         producto_id = body.get("producto_id")
