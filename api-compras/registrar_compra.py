@@ -1,39 +1,55 @@
-import boto3
 import json
+import boto3
 import uuid
 from datetime import datetime
 import os
+
 dynamodb = boto3.resource('dynamodb')
+tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
 productos_table = dynamodb.Table(os.environ['PRODUCTOS_TABLE_NAME'])
 compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
-tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
 
 def lambda_handler(event, context):
     try:
-        body = json.loads(event.get("body", "{}"))
-        token = event.get("headers", {}).get("Authorization")
-        producto_id = body.get("producto_id")
+        headers = event.get("headers") or {}
+        token = headers.get("Authorization")
 
-        if not token or not producto_id:
-            return {
-                "statusCode": 400,
-                "body": json.dumps({"error": "Faltan token o producto_id"})
-            }
-
-        # Validar token
-        token_resp = tokens_table.get_item(Key={"token": token})
-        token_data = token_resp.get("Item")
-        if not token_data or datetime.utcnow() > datetime.fromisoformat(token_data["expires"]):
+        if not token:
             return {
                 "statusCode": 403,
-                "body": json.dumps({"error": "Token inválido o expirado"})
+                "body": json.dumps({"error": "Token requerido"})
             }
 
-        tenant_id = token_data["tenant_id"]
+        token_data = tokens_table.get_item(Key={'token': token})
+        item = token_data.get('Item')
+
+        if not item or 'tenant_id' not in item or 'expires' not in item:
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": "Token inválido o incompleto"})
+            }
+
+        if datetime.utcnow() > datetime.fromisoformat(item['expires']):
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": "Token expirado"})
+            }
+
+        tenant_id = item['tenant_id']
+
+        body = json.loads(event.get("body", "{}"))
+        producto_id = body.get("producto_id")
+
+        if not producto_id:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Falta el producto_id"})
+            }
 
         # Obtener producto
-        producto_resp = productos_table.get_item(Key={"tenant_id": tenant_id, "producto_id": producto_id})
-        producto = producto_resp.get("Item")
+        prod_response = productos_table.get_item(Key={"tenant_id": tenant_id, "producto_id": producto_id})
+        producto = prod_response.get("Item")
+
         if not producto:
             return {
                 "statusCode": 404,
@@ -43,20 +59,20 @@ def lambda_handler(event, context):
         if producto["stock"] <= 0:
             return {
                 "statusCode": 400,
-                "body": json.dumps({"error": "Stock insuficiente"})
+                "body": json.dumps({"error": "Producto sin stock"})
             }
 
-        # Restar stock
+        # Reducir stock
         productos_table.update_item(
             Key={"tenant_id": tenant_id, "producto_id": producto_id},
-            UpdateExpression="SET stock = stock - :dec",
+            UpdateExpression="SET stock = stock - :val",
             ConditionExpression="stock > :zero",
-            ExpressionAttributeValues={":dec": 1, ":zero": 0}
+            ExpressionAttributeValues={":val": 1, ":zero": 0}
         )
 
-        # Registrar compra
+        # Guardar compra
         compra_id = str(uuid.uuid4())
-        compras_table.put_item(Item={
+        compra_item = {
             "tenant_id": tenant_id,
             "compra_id": compra_id,
             "producto_id": producto_id,
@@ -66,16 +82,23 @@ def lambda_handler(event, context):
                 "precio": producto["precio"]
             },
             "fecha": datetime.utcnow().isoformat()
-        })
+        }
+
+        compras_table.put_item(Item=compra_item)
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"message": "Compra registrada correctamente"})
+            "body": json.dumps({
+                "mensaje": "Compra registrada con éxito",
+                "compra_id": compra_id
+            })
         }
 
     except Exception as e:
-        print("Error:", e)
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": "Error interno", "detalle": str(e)})
+            "body": json.dumps({
+                "error": "Error interno",
+                "detalle": str(e)
+            })
         }
