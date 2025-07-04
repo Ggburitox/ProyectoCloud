@@ -61,8 +61,8 @@ def lambda_handler(event, context):
 
         registro_token = {
             'token': token,
-            'usuario_id': usuario_id,
-            'expires': expiration.strftime('%Y-%m-%d %H:%M:%S')
+            'tenant_id': usuario_id,
+            'expires': expiration.isoformat()
         }
 
         tabla_tokens = dynamodb.Table(TOKENS_TABLE)
