@@ -1,44 +1,56 @@
-import boto3
 import json
+import boto3
 import os
+from datetime import datetime
 
 dynamodb = boto3.resource('dynamodb')
-compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
 tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
+compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
 
 def lambda_handler(event, context):
     try:
-        token = event.get("headers", {}).get("Authorization")
+        headers = event.get("headers") or {}
+        token = headers.get("Authorization")
 
         if not token:
             return {
-                "statusCode": 400,
+                "statusCode": 403,
                 "body": json.dumps({"error": "Token requerido"})
             }
+            
+        token_data = tokens_table.get_item(Key={'token': token})
+        item = token_data.get('Item')
 
-        token_resp = tokens_table.get_item(Key={"token": token})
-        token_data = token_resp.get("Item")
-        if not token_data or datetime.utcnow() > datetime.fromisoformat(token_data["expires"]):
+        if not item or 'tenant_id' not in item or 'expires' not in item:
             return {
                 "statusCode": 403,
-                "body": json.dumps({"error": "Token inválido o expirado"})
+                "body": json.dumps({"error": "Token inválido o incompleto"})
             }
 
-        tenant_id = token_data["tenant_id"]
+        if datetime.utcnow() > datetime.fromisoformat(item['expires']):
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": "Token expirado"})
+            }
 
-        response = compras_table.query(
-            KeyConditionExpression="tenant_id = :tid",
-            ExpressionAttributeValues={":tid": tenant_id}
+        tenant_id = item['tenant_id']
+
+        compras_response = compras_table.query(
+            KeyConditionExpression=boto3.dynamodb.conditions.Key('tenant_id').eq(tenant_id)
         )
+
+        compras = compras_response.get('Items', [])
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"compras": response.get("Items", [])})
+            "body": json.dumps({"compras": compras})
         }
 
     except Exception as e:
-        print("Error:", e)
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": "Error interno", "detalle": str(e)})
+            "body": json.dumps({
+                "error": "Error interno",
+                "detalle": str(e)
+            })
         }
