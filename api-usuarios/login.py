@@ -61,8 +61,9 @@ def lambda_handler(event, context):
 
         registro_token = {
             'token': token,
-            'tenant_id': usuario_id,
-            'expires': expiration.isoformat()
+            'tenant_id': usuario_id,  # ← Aquí está tu tenant_id basado en el email
+            'usuario_id': usuario_id,  # ← Por si lo necesitas después
+            'expires': expiration.isoformat()  # ← Formato ISO correcto
         }
 
         tabla_tokens = dynamodb.Table(TOKENS_TABLE)
@@ -78,5 +79,5 @@ def lambda_handler(event, context):
         return {
             'statusCode': 500,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Ocurrió un error interno en el servidor.'})
+            'body': json.dumps({'error': 'Ocurrió un error interno en el servidor.', 'detalle': str(e)})
         }
