@@ -24,7 +24,7 @@ def lambda_handler(event, context):
         token_data = tokens_table.get_item(Key={'token': token})
         item = token_data.get('Item')
 
-        if not item or 'tenant_id' not in item or 'expires' not in item:
+        if not item or 'tenant_id' not in item or 'usuario_id' not in item or 'expires' not in item:
             return {
                 "statusCode": 403,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
@@ -36,20 +36,22 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token expirado"})
             }
 
-        comprador_email = item['tenant_id']
+        tenant_id = item['tenant_id']         # ← Petshop
+        comprador_email = item['usuario_id']  # ← Email del usuario
 
         # Leer el body del request
         body = json.loads(event.get("body", "{}"))
         producto_id = body.get("producto_id")
-        tenant_id = body.get("tenant_id")
-        if not producto_id or not tenant_id:
+        producto_tenant_id = body.get("tenant_id")  # tienda del producto
+
+        if not producto_id or not producto_tenant_id:
             return {
                 "statusCode": 400,
-                "body": json.dumps({"error": "Falta el producto_id o tenant_id"})
+                "body": json.dumps({"error": "Falta el producto_id o tenant_id del producto"})
             }
 
         prod_response = productos_table.get_item(Key={
-            "tenant_id": tenant_id,
+            "tenant_id": producto_tenant_id,
             "producto_id": producto_id
         })
         producto = prod_response.get("Item")
@@ -68,7 +70,7 @@ def lambda_handler(event, context):
 
         productos_table.update_item(
             Key={
-                "tenant_id": tenant_id,
+                "tenant_id": producto_tenant_id,
                 "producto_id": producto_id
             },
             UpdateExpression="SET stock = stock - :val",
@@ -78,11 +80,11 @@ def lambda_handler(event, context):
 
         compra_id = str(uuid.uuid4())
         compra_item = {
-            "tenant_id": comprador_email, 
+            "tenant_id": tenant_id,  # ← la tienda que hizo la compra
             "compra_id": compra_id,
             "producto_id": producto_id,
-            "producto_tenant_id": tenant_id,
-            "comprador_email": comprador_email,
+            "producto_tenant_id": producto_tenant_id,  # ← la tienda del producto
+            "comprador_email": comprador_email,        # ← el usuario real
             "detalle_producto": {
                 "nombre": producto["nombre"],
                 "descripcion": producto["descripcion"],
