@@ -25,9 +25,14 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Email, contraseña y tenant_id son requeridos'})
             }
 
+        usuario_id = email
+
         dynamodb = boto3.resource('dynamodb')
         tabla_usuarios = dynamodb.Table(USERS_TABLE)
-        response = tabla_usuarios.get_item(Key={'tenant_id': tenant_id, 'usuario_id': email})
+        response = tabla_usuarios.get_item(Key={
+            'tenant_id': tenant_id,
+            'usuario_id': usuario_id
+        })
 
         if 'Item' not in response:
             return {
@@ -43,7 +48,7 @@ def lambda_handler(event, context):
             return {
                 'statusCode': 500,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Error de configuración de usuario en la base de datos.'})
+                'body': json.dumps({'error': 'Configuración inválida en base de datos'})
             }
 
         password_to_check_hash = hash_password(password, stored_salt)
@@ -52,7 +57,7 @@ def lambda_handler(event, context):
             return {
                 'statusCode': 403,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Usuario no existe o credenciales incorrectas'})
+                'body': json.dumps({'error': 'Credenciales incorrectas'})
             }
 
         token = str(uuid.uuid4())
@@ -61,7 +66,7 @@ def lambda_handler(event, context):
         registro_token = {
             'token': token,
             'tenant_id': tenant_id,
-            'usuario_id': email,
+            'usuario_id': usuario_id,
             'expires': expiration.isoformat()
         }
 
@@ -71,12 +76,17 @@ def lambda_handler(event, context):
         return {
             'statusCode': 200,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({"token": token})
+            'body': json.dumps({
+                "token": token
+            })
         }
 
     except Exception as e:
         return {
             'statusCode': 500,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Ocurrió un error interno en el servidor.', 'detalle': str(e)})
+            'body': json.dumps({
+                'error': 'Error interno en el servidor',
+                'detalle': str(e)
+            })
         }
