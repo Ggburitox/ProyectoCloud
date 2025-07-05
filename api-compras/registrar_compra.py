@@ -20,7 +20,6 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token requerido"})
             }
 
-        # Verificar token
         token_data = tokens_table.get_item(Key={'token': token})
         item = token_data.get('Item')
 
@@ -36,13 +35,13 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token expirado"})
             }
 
-        tenant_id = item['tenant_id']         # ← Petshop
-        comprador_email = item['usuario_id']  # ← Email del usuario
+        tenant_id = item['tenant_id']
+        comprador_email = item['usuario_id']
 
         # Leer el body del request
         body = json.loads(event.get("body", "{}"))
         producto_id = body.get("producto_id")
-        producto_tenant_id = body.get("tenant_id")  # tienda del producto
+        producto_tenant_id = body.get("tenant_id")
 
         if not producto_id or not producto_tenant_id:
             return {
@@ -80,11 +79,11 @@ def lambda_handler(event, context):
 
         compra_id = str(uuid.uuid4())
         compra_item = {
-            "tenant_id": tenant_id,  # ← la tienda que hizo la compra
+            "tenant_id": tenant_id,
             "compra_id": compra_id,
             "producto_id": producto_id,
-            "producto_tenant_id": producto_tenant_id,  # ← la tienda del producto
-            "comprador_email": comprador_email,        # ← el usuario real
+            "producto_tenant_id": producto_tenant_id,
+            "comprador_email": comprador_email,
             "detalle_producto": {
                 "nombre": producto["nombre"],
                 "descripcion": producto["descripcion"],
