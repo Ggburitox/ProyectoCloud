@@ -1,60 +1,54 @@
+import json
 import boto3
 import os
-import json
 from datetime import datetime
 
 dynamodb = boto3.resource('dynamodb')
-TOKENS_TABLE = os.environ.get('TOKENS_TABLE_NAME', 't_tokens')
+tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
 
 def lambda_handler(event, context):
     try:
-        body = json.loads(event.get("body", "{}"))
-        token = body.get("token")
+        headers = event.get("headers") or {}
+        token = headers.get("Authorization")
 
         if not token:
             return {
-                'statusCode': 403,
-                'body': json.dumps({'error': 'Token requerido'})
+                "statusCode": 403,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"error": "Token requerido"})
             }
 
-        tabla = dynamodb.Table(TOKENS_TABLE)
-        response = tabla.get_item(Key={'token': token})
+        # Buscar el token en la tabla
+        token_data = tokens_table.get_item(Key={'token': token})
+        item = token_data.get('Item')
 
-        if 'Item' not in response:
+        if not item or 'tenant_id' not in item or 'expires' not in item:
             return {
-                'statusCode': 403,
-                'body': json.dumps({'error': 'Token inválido o no encontrado'})
+                "statusCode": 403,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"error": "Token inválido o incompleto"})
             }
 
-        item = response['Item']
-        expires_str = item.get('expires')
-
-        if not expires_str:
+        if datetime.utcnow() > datetime.fromisoformat(item['expires']):
             return {
-                'statusCode': 500,
-                'body': json.dumps({'error': 'Token sin expiración registrada'})
-            }
-
-        expires = datetime.strptime(expires_str, '%Y-%m-%d %H:%M:%S')
-        now = datetime.utcnow()
-
-        if now > expires:
-            return {
-                'statusCode': 403,
-                'body': json.dumps({'error': 'Token expirado'})
+                "statusCode": 403,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"error": "Token expirado"})
             }
 
         return {
-            'statusCode': 200,
-            'body': json.dumps({
-                'mensaje': 'Token válido',
-                'usuario_id': item['usuario_id'],
-                'rol': item.get('rol', 'cliente')  # Por si usas roles luego
+            "statusCode": 200,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({
+                "mensaje": "Token válido",
+                "tenant_id": item['tenant_id'],
+                "usuario_id": item.get('usuario_id', item['tenant_id'])  # Por compatibilidad
             })
         }
 
     except Exception as e:
         return {
-            'statusCode': 500,
-            'body': json.dumps({'error': 'Error interno al validar token', 'detalle': str(e)})
+            "statusCode": 500,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"error": "Error interno", "detalle": str(e)})
         }
