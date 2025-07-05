@@ -16,19 +16,18 @@ def lambda_handler(event, context):
         body = json.loads(event.get("body", "{}"))
         email = body.get("email")
         password = body.get("password")
+        tenant_id = body.get("tenant_id")
 
-        if not email or not password:
+        if not email or not password or not tenant_id:
             return {
                 'statusCode': 400,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Email y contraseña son requeridos'})
+                'body': json.dumps({'error': 'Email, contraseña y tenant_id son requeridos'})
             }
-
-        usuario_id = email
 
         dynamodb = boto3.resource('dynamodb')
         tabla_usuarios = dynamodb.Table(USERS_TABLE)
-        response = tabla_usuarios.get_item(Key={'usuario_id': usuario_id})
+        response = tabla_usuarios.get_item(Key={'tenant_id': tenant_id, 'usuario_id': email})
 
         if 'Item' not in response:
             return {
@@ -61,9 +60,9 @@ def lambda_handler(event, context):
 
         registro_token = {
             'token': token,
-            'tenant_id': usuario_id,  # ← Aquí está tu tenant_id basado en el email
-            'usuario_id': usuario_id,  # ← Por si lo necesitas después
-            'expires': expiration.isoformat()  # ← Formato ISO correcto
+            'tenant_id': tenant_id,
+            'usuario_id': email,
+            'expires': expiration.isoformat()
         }
 
         tabla_tokens = dynamodb.Table(TOKENS_TABLE)
