@@ -2,6 +2,7 @@ import json
 import boto3
 import os
 from boto3.dynamodb.conditions import Key
+from datetime import datetime
 from decimal import Decimal
 
 dynamodb = boto3.resource('dynamodb')
@@ -11,7 +12,7 @@ compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
 def decimal_default(obj):
     if isinstance(obj, Decimal):
         return float(obj)
-    raise TypeError
+    raise TypeError("No serializable")
 
 def lambda_handler(event, context):
     try:
@@ -25,23 +26,35 @@ def lambda_handler(event, context):
             }
 
         token_data = tokens_table.get_item(Key={'token': token})
-        item = token_data.get("Item")
+        token_item = token_data.get("Item")
 
-        if not item or 'tenant_id' not in item or 'expires' not in item:
+        if not token_item or 'tenant_id' not in token_item or 'usuario_id' not in token_item or 'expires' not in token_item:
             return {
                 "statusCode": 403,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
             }
 
-        tenant_id = item['tenant_id']  # ← CORREGIDO
+        if datetime.utcnow() > datetime.fromisoformat(token_item['expires']):
+            return {
+                "statusCode": 403,
+                "body": json.dumps({"error": "Token expirado"})
+            }
 
-        compras = compras_table.query(
+        tenant_id = token_item["tenant_id"]
+        usuario_id = token_item["usuario_id"]
+
+        response = compras_table.query(
             KeyConditionExpression=Key("tenant_id").eq(tenant_id)
         )
+        compras_tenant = response.get("Items", [])
+        compras_usuario = [
+            compra for compra in compras_tenant
+            if compra.get("comprador_email") == usuario_id
+        ]
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"compras": compras.get("Items", [])}, default=decimal_default)
+            "body": json.dumps({"compras": compras_usuario}, default=decimal_default)
         }
 
     except Exception as e:
