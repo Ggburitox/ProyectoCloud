@@ -16,29 +16,30 @@ def lambda_handler(event, context):
         email = body.get("email")
         password = body.get("password")
         username = body.get("username")
+        tenant_id = body.get("tenant_id")
 
-        if not email or not password or not username:
+        if not email or not password or not username or not tenant_id:
             return {
                 'statusCode': 400,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Email, contraseña y nombre de usuario son requeridos'})
+                'body': json.dumps({'error': 'Email, contraseña, nombre de usuario y tenant_id son requeridos'})
             }
 
-        usuario_id = email
         tabla_usuarios = dynamodb.Table(USERS_TABLE)
 
-        if 'Item' in tabla_usuarios.get_item(Key={'usuario_id': usuario_id}):
+        if 'Item' in tabla_usuarios.get_item(Key={'tenant_id': tenant_id, 'usuario_id': email}):
             return {
                 'statusCode': 409,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'El usuario ya existe'})
+                'body': json.dumps({'error': 'El usuario ya existe en esta tienda'})
             }
 
         salt = uuid.uuid4().hex
         password_hash = hash_password(password, salt)
 
         nuevo_usuario = {
-            'usuario_id': usuario_id,
+            'tenant_id': tenant_id,
+            'usuario_id': email,
             'username': username,
             'password': password_hash,
             'salt': salt,
