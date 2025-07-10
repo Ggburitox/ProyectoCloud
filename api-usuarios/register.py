@@ -15,19 +15,27 @@ def lambda_handler(event, context):
         body = json.loads(event.get("body", "{}"))
         email = body.get("email")
         password = body.get("password")
-        username = body.get("username")
+        nombre = body.get("nombre")
+        apellidos = body.get("apellidos")
+        direccion = body.get("direccion")
         tenant_id = body.get("tenant_id")
 
-        if not email or not password or not username or not tenant_id:
+        if not email or not password or not nombre or not apellidos or not direccion or not tenant_id:
             return {
                 'statusCode': 400,
                 'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'error': 'Email, contraseña, nombre de usuario y tenant_id son requeridos'})
+                'body': json.dumps({'error': 'Faltan campos requeridos'})
             }
 
         tabla_usuarios = dynamodb.Table(USERS_TABLE)
 
-        if 'Item' in tabla_usuarios.get_item(Key={'tenant_id': tenant_id, 'usuario_id': email}):
+        # Validar si ya existe el usuario
+        result = tabla_usuarios.get_item(Key={
+            'tenant_id': tenant_id,
+            'usuario_id': email
+        })
+
+        if 'Item' in result:
             return {
                 'statusCode': 409,
                 'headers': {'Access-Control-Allow-Origin': '*'},
@@ -40,9 +48,11 @@ def lambda_handler(event, context):
         nuevo_usuario = {
             'tenant_id': tenant_id,
             'usuario_id': email,
-            'username': username,
+            'nombre': nombre,
+            'apellidos': apellidos,
+            'direccion': direccion,
             'password': password_hash,
-            'salt': salt,
+            'salt': salt
         }
 
         tabla_usuarios.put_item(Item=nuevo_usuario)
@@ -57,5 +67,5 @@ def lambda_handler(event, context):
         return {
             'statusCode': 500,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({'error': 'Error interno', 'detalle': str(e)})
         }
