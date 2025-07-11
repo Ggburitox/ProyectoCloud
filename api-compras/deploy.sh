@@ -3,7 +3,7 @@
 STAGES=("dev" "prod" "test")
 
 for stage in "${STAGES[@]}"; do
-  echo "Desplegando api-usuarios en stage: $stage"
+  echo "Desplegando api-compras en stage: $stage"
   sls deploy --stage $stage
   echo "Desplegado en $stage"
   echo "-----------------------------"
