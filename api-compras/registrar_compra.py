@@ -9,6 +9,11 @@ tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
 productos_table = dynamodb.Table(os.environ['PRODUCTOS_TABLE_NAME'])
 compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
 
+cors_headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "*"
+}
+
 def lambda_handler(event, context):
     try:
         headers = event.get("headers") or {}
@@ -17,6 +22,7 @@ def lambda_handler(event, context):
         if not token:
             return {
                 "statusCode": 403,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Token requerido"})
             }
 
@@ -26,19 +32,20 @@ def lambda_handler(event, context):
         if not item or 'tenant_id' not in item or 'usuario_id' not in item or 'expires' not in item:
             return {
                 "statusCode": 403,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
             }
 
         if datetime.utcnow() > datetime.fromisoformat(item['expires']):
             return {
                 "statusCode": 403,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Token expirado"})
             }
 
         tenant_id = item['tenant_id']
         comprador_email = item['usuario_id']
 
-        # Leer el body del request
         body = json.loads(event.get("body", "{}"))
         producto_id = body.get("producto_id")
         producto_tenant_id = body.get("tenant_id")
@@ -46,6 +53,7 @@ def lambda_handler(event, context):
         if not producto_id or not producto_tenant_id:
             return {
                 "statusCode": 400,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Falta el producto_id o tenant_id del producto"})
             }
 
@@ -58,12 +66,14 @@ def lambda_handler(event, context):
         if not producto:
             return {
                 "statusCode": 404,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Producto no encontrado"})
             }
 
         if producto["stock"] <= 0:
             return {
                 "statusCode": 400,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Producto sin stock"})
             }
 
@@ -96,6 +106,7 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
+            "headers": cors_headers,
             "body": json.dumps({
                 "mensaje": "Compra registrada con éxito",
                 "compra_id": compra_id
@@ -105,6 +116,7 @@ def lambda_handler(event, context):
     except Exception as e:
         return {
             "statusCode": 500,
+            "headers": cors_headers,
             "body": json.dumps({
                 "error": "Error interno",
                 "detalle": str(e)
