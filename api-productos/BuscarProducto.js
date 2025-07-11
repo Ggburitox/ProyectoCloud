@@ -15,6 +15,7 @@ exports.handler = async (event) => {
     if (!tenant_id || !producto_id || !tokenHeader) {
       return {
         statusCode: 400,
+        headers: corsHeaders(),
         body: JSON.stringify({
           error: 'Faltan tenant_id, producto_id o token de autorización.'
         }),
@@ -23,28 +24,19 @@ exports.handler = async (event) => {
 
     const token = tokenHeader.replace(/^Bearer\s+/i, '');
 
-    // Verificar token
     const tokenData = await dynamodb.get({
       TableName: TOKENS_TABLE_NAME,
       Key: { token }
     }).promise();
 
-    if (!tokenData.Item) {
+    if (!tokenData.Item || new Date() > new Date(tokenData.Item.expires)) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ error: 'Token inválido o no encontrado.' }),
+        headers: corsHeaders(),
+        body: JSON.stringify({ error: 'Token inválido o expirado.' }),
       };
     }
 
-    const expires = new Date(tokenData.Item.expires);
-    if (new Date() > expires) {
-      return {
-        statusCode: 403,
-        body: JSON.stringify({ error: 'Token expirado.' }),
-      };
-    }
-
-    // Buscar producto
     const result = await dynamodb.get({
       TableName: TABLE_NAME,
       Key: { tenant_id, producto_id }
@@ -53,12 +45,14 @@ exports.handler = async (event) => {
     if (!result.Item) {
       return {
         statusCode: 404,
+        headers: corsHeaders(),
         body: JSON.stringify({ error: 'Producto no encontrado.' }),
       };
     }
 
     return {
       statusCode: 200,
+      headers: corsHeaders(),
       body: JSON.stringify(result.Item),
     };
 
@@ -66,6 +60,7 @@ exports.handler = async (event) => {
     console.error("Error interno al buscar producto:", err);
     return {
       statusCode: 500,
+      headers: corsHeaders(),
       body: JSON.stringify({
         error: 'Error interno al buscar producto',
         detalle: err.message || 'Error desconocido',
@@ -73,3 +68,11 @@ exports.handler = async (event) => {
     };
   }
 };
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+  };
+}
