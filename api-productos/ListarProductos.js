@@ -16,6 +16,7 @@ exports.handler = async (event) => {
     if (!tenant_id || !token) {
       return {
         statusCode: 400,
+        headers: corsHeaders(),
         body: JSON.stringify({ error: 'Se requiere tenant_id y token' }),
       };
     }
@@ -24,6 +25,7 @@ exports.handler = async (event) => {
     if (!tokenData.Item || new Date() > new Date(tokenData.Item.expires)) {
       return {
         statusCode: 403,
+        headers: corsHeaders(),
         body: JSON.stringify({ error: 'Token inválido o expirado.' }),
       };
     }
@@ -43,6 +45,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
+      headers: corsHeaders(),
       body: JSON.stringify({
         items: result.Items,
         nextPageToken: result.LastEvaluatedKey?.producto_id || null
@@ -53,7 +56,16 @@ exports.handler = async (event) => {
     console.error("Error:", err);
     return {
       statusCode: 500,
+      headers: corsHeaders(),
       body: JSON.stringify({ error: 'Error al listar productos', detalle: err.message }),
     };
   }
 };
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+  };
+}
