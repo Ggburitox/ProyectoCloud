@@ -15,6 +15,7 @@ exports.handler = async (event) => {
     if (!tenant_id || !producto_id || !token) {
       return {
         statusCode: 400,
+        headers: corsHeaders(),
         body: JSON.stringify({ error: 'Se requieren tenant_id, producto_id y token' }),
       };
     }
@@ -23,6 +24,7 @@ exports.handler = async (event) => {
     if (!tokenData.Item || new Date() > new Date(tokenData.Item.expires)) {
       return {
         statusCode: 403,
+        headers: corsHeaders(),
         body: JSON.stringify({ error: 'Token inválido o expirado.' }),
       };
     }
@@ -34,6 +36,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
+      headers: corsHeaders(),
       body: JSON.stringify({ message: 'Producto eliminado correctamente' }),
     };
 
@@ -41,7 +44,16 @@ exports.handler = async (event) => {
     console.error("Error:", err);
     return {
       statusCode: 500,
+      headers: corsHeaders(),
       body: JSON.stringify({ error: 'Error al eliminar producto', detalle: err.message }),
     };
   }
 };
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+  };
+}
