@@ -9,6 +9,11 @@ dynamodb = boto3.resource('dynamodb')
 tokens_table = dynamodb.Table(os.environ['TOKENS_TABLE_NAME'])
 compras_table = dynamodb.Table(os.environ['COMPRAS_TABLE_NAME'])
 
+cors_headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "*"
+}
+
 def decimal_default(obj):
     if isinstance(obj, Decimal):
         return float(obj)
@@ -22,6 +27,7 @@ def lambda_handler(event, context):
         if not token:
             return {
                 "statusCode": 403,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Token requerido"})
             }
 
@@ -31,12 +37,14 @@ def lambda_handler(event, context):
         if not token_item or 'tenant_id' not in token_item or 'usuario_id' not in token_item or 'expires' not in token_item:
             return {
                 "statusCode": 403,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Token inválido o incompleto"})
             }
 
         if datetime.utcnow() > datetime.fromisoformat(token_item['expires']):
             return {
                 "statusCode": 403,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Token expirado"})
             }
 
@@ -54,12 +62,14 @@ def lambda_handler(event, context):
 
         return {
             "statusCode": 200,
+            "headers": cors_headers,
             "body": json.dumps({"compras": compras_usuario}, default=decimal_default)
         }
 
     except Exception as e:
         return {
             "statusCode": 500,
+            "headers": cors_headers,
             "body": json.dumps({
                 "error": "Error interno",
                 "detalle": str(e)
