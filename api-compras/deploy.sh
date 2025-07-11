@@ -9,4 +9,4 @@ for stage in "${STAGES[@]}"; do
   echo "-----------------------------"
 done
 
-echo "Todos los stages de api-usuarios desplegados."
+echo "Todos los stages de api-compras desplegados."
