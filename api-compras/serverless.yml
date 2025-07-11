@@ -22,7 +22,6 @@ functions:
       - http:
           path: /compras/registrar
           method: post
-          cors: true
 
   listar_compras:
     handler: listar_compras.lambda_handler
@@ -30,7 +29,6 @@ functions:
       - http:
           path: /compras/listar
           method: get
-          cors: true
 
 resources:
   Resources:
