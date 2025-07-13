@@ -1,7 +1,6 @@
 import json
 import boto3
 import os
-from boto3.dynamodb.conditions import Key
 from datetime import datetime
 from decimal import Decimal
 
@@ -50,14 +49,12 @@ def lambda_handler(event, context):
 
         tenant_id = token_item["tenant_id"]
         usuario_id = token_item["usuario_id"]
+        scan_result = compras_table.scan()
+        todas_compras = scan_result.get("Items", [])
 
-        response = compras_table.query(
-            KeyConditionExpression=Key("tenant_id").eq(tenant_id)
-        )
-        compras_tenant = response.get("Items", [])
         compras_usuario = [
-            compra for compra in compras_tenant
-            if compra.get("comprador_email") == usuario_id
+            compra for compra in todas_compras
+            if compra.get("tenant_id") == tenant_id and compra.get("comprador_email") == usuario_id
         ]
 
         return {
