@@ -43,10 +43,11 @@ def lambda_handler(event, context):
                 "body": json.dumps({"error": "Token expirado"})
             }
 
-        tenant_id = item['tenant_id']
         comprador_email = item['usuario_id']
 
+        # ESTA ERA LA LÍNEA CON EL ERROR, YA CORREGIDA ABAJO
         body = json.loads(event.get("body", "{}"))
+
         producto_id = body.get("producto_id")
         producto_tenant_id = body.get("tenant_id")
 
@@ -89,7 +90,7 @@ def lambda_handler(event, context):
 
         compra_id = str(uuid.uuid4())
         compra_item = {
-            "tenant_id": tenant_id,
+            "tenant_id": producto_tenant_id,  # ← CORREGIDO: uso correcto del tenant del producto
             "compra_id": compra_id,
             "producto_id": producto_id,
             "producto_tenant_id": producto_tenant_id,
