@@ -41,7 +41,7 @@ functions:
     events:
       - http:
           path: /producto/eliminar
-          method: post
+          method: delete
           cors: true
 
   listarProductos:
@@ -57,7 +57,7 @@ functions:
     events:
       - http:
           path: /producto/modificar
-          method: post
+          method: put
           cors: true
 
 resources:
